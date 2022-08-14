@@ -1,12 +1,17 @@
 local S = minetest.get_translator(minetest.get_current_modname())
 
+local mcl = minetest.get_modpath("mcl_core") ~= nil
 
 -- Staticdata handling because objects may want to be reloaded
 function sum_jetpack.get_staticdata(self)
+	local itemstack = "sum_jetpack:jetpack"
+	if self._itemstack then
+		itemstack = self._itemstack:to_table()
+	end
 	local data = {
 		_lastpos = self._lastpos,
 		_age = self._age,
-		_itemstack = self._itemstack,
+		_itemstack = itemstack,
 	}
 	return minetest.serialize(data)
 end
@@ -15,7 +20,9 @@ function sum_jetpack.on_activate(self, staticdata, dtime_s)
 	if data then
 		self._lastpos = data._lastpos
 		self._age = data._age
-		self._itemstack = data._itemstack
+		if self._itemstack == nil and data._itemstack ~= nil then
+			self._itemstack = ItemStack(data._itemstack)
+		end
 	end
 	self._sounds = {
 		engine = {
@@ -90,7 +97,7 @@ local sound_list = {
 	boost = {
 		name = "sum_jetpack_flame",
 		gain = 0.2,
-		pitch = 0.6,
+		pitch = 0.7,
 		duration = 3 + (3 * (1 - 0.6)), -- will stop the sound after this
 	},
 }
@@ -128,7 +135,19 @@ sum_jetpack.do_sounds = function(self)
 end
 
 sum_jetpack.drop_self = function(self)
-	minetest.add_item(self.object:get_pos(), self._itemstack)
+	local drop = self._itemstack
+	self._flags.removed = true
+	if self._driver and self._driver:is_player() then
+		if minetest.is_creative_enabled(self._driver:get_player_name()) then
+			drop = nil
+		else
+			local inv = self._driver:get_inventory()
+			drop = inv:add_item("main", drop)
+		end
+	end
+	if drop then
+		minetest.add_item(self.object:get_pos(), drop)
+	end
 end
 
 
@@ -145,7 +164,11 @@ sum_jetpack.on_death = function(self, nothing)
 		gain = 1,
     object = self.object,
 	})
+	vel = self.object:get_velocity()
   if self._driver then
+		minetest.after(0.01, function(vel, driver)
+			driver:add_velocity(vel)
+		end, vel, self._driver)
     sum_jetpack.detach_object(self._driver, false)
   end
 end
@@ -193,18 +216,74 @@ sum_jetpack.get_movement = function(self)
   return v
 end
 
-local gravity = -8
+local particles = {
+	flame = {
+		texture = "sum_jetpack_particle_flame.png",
+		vel = 30,
+		time = 1,
+		size = 0.7},
+	smoke = {
+		texture = "sum_jetpack_particle_smoke.png",
+		vel = 8,
+		time = 4,
+		size = 1.3},
+	spark = {
+		texture = "sum_jetpack_particle_spark.png",
+		vel = 40,
+		time = 0.6,
+		size = 1},
+}
+local exhaust = {
+	dist = 0.6,
+	yaw = 0.5,
+}
+sum_jetpack.do_particles = function(self, dtime)
+	-- local rand = function(m, n)
+	-- 	return (math.random()-0.5) * math.abs(m - n) + m
+	-- end
+	local wind_vel = vector.new()
+	local p = self.object:get_pos()
+	if sum_air_currents then
+		sum_air_currents.get_wind(p)
+	end
+	for i=-1,0 do
+		if i == 0 then i = 1 end
+		local yaw = self.object:get_yaw() + (exhaust.yaw * i) + math.pi
+		yaw = minetest.yaw_to_dir(yaw)
+		yaw = vector.multiply(yaw, exhaust.dist)
+		local ex = vector.add(p, yaw)
+		ex.y = ex.y + 1
+		for _, prt in pairs(particles) do
+			minetest.add_particle({
+				pos = ex,
+				velocity = vector.add(wind_vel, {x=0, y= prt.vel * -math.random(0.2*100,0.7*100)/100, z=0}),
+				expirationtime = ((math.random() / 5) + 0.2) * prt.time,
+				size = ((math.random())*4 + 0.1) * prt.size,
+				collisiondetection = false,
+				vertical = false,
+				texture = prt.texture,
+			})
+		end
+	end
+end
+
+local gravity = -1
 local move_speed = 20
 sum_jetpack.max_use_time = 30
 sum_jetpack.wear_per_sec = 65535 / sum_jetpack.max_use_time
 sum_jetpack.wear_warn_level = (sum_jetpack.max_use_time - 5) * sum_jetpack.wear_per_sec
+
 sum_jetpack.on_step = function(self, dtime)
   if self._age < 100 then self._age = self._age + dtime end
-	if self._age> 1 and self._itemstack then
+	if self._age > 1 and self._itemstack then
 		local wear = self._itemstack:get_wear()
 		self._itemstack:set_wear(math.min(65534, wear + (65535 / sum_jetpack.max_use_time) * dtime))
+		self._fuel = sum_jetpack.max_use_time - (wear / sum_jetpack.wear_per_sec)
 		if wear >= 65534 then
 			self._disabled = true
+			sum_jetpack.on_death(self, nil)
+			self.object:remove()
+			return false
 		elseif wear >= sum_jetpack.wear_warn_level and (not self._flags.warn) then
 			local warn_sound = minetest.sound_play("sum_jetpack_warn", {gain = 0.5, object = self.object})
 			if warn_sound and minetest.sound_fade ~= nil then
@@ -216,6 +295,9 @@ sum_jetpack.on_step = function(self, dtime)
 		sum_jetpack.sound_timer_update(self, dtime)
 		sum_jetpack.do_sounds(self)
 	end
+
+	sum_jetpack.do_particles(self, dtime)
+
   local p = self.object:get_pos()
   local node_floor = minetest.get_node(vector.offset(p, 0, -0.2, 0))
   local exit = (self._driver and self._driver:get_player_control().sneak)
@@ -233,18 +315,16 @@ sum_jetpack.on_step = function(self, dtime)
   local a = vector.new()
 	local move_mult = move_speed
 	if self._disabled then move_mult = move_mult / 10 end
-  a = vector.multiply(sum_jetpack.get_movement(self), move_mult)
+	local move_vect = sum_jetpack.get_movement(self)
+  a = vector.multiply(move_vect, move_mult)
   a = vector.add(a, vector.new(0, gravity, 0))
   if sum_air_currents and sum_air_currents.get_wind ~= nil then
-    a = vector.add(a, vector.multiply(sum_air_currents.get_wind(p), 2))
+    a = vector.add(a, vector.multiply(sum_air_currents.get_wind(p), 1))
   end
   self.object:set_acceleration(a)
 
   local vel = self.object:get_velocity()
-  -- vel = vector.multiply(vel, 0.99)
-  vel.x = vel.x * 0.99
-  vel.y = vel.y * 0.98
-  vel.z = vel.z * 0.99
+  vel = vector.multiply(vel, 0.98)
   self.object:set_velocity(vel)
 end
 
@@ -271,6 +351,7 @@ local jetpack_ENTITY = {
 	_itemstack = nil,
 	_disabled = false,
 	_flags = {},
+	_fuel = sum_jetpack.max_use_time,
 
 	_lastpos={},
 }

@@ -3,12 +3,10 @@ local S = minetest.get_translator(minetest.get_current_modname())
 
 sum_jetpack.on_use = function(itemstack, user, pointed_thing)
   if user:get_attach() ~= nil then return itemstack end
-  if not minetest.is_creative_enabled(user:get_player_name()) then
-    itemstack:take_item()
-  end
   local pos = user:get_pos()
   local parachute = minetest.add_entity(pos, "sum_jetpack:jetpack_ENTITY")
-  ent = parachute:get_luaentity()
+  local ent = parachute:get_luaentity()
+  -- if ent then ent._itemstack = itemstack end
   minetest.after(0.1, function(ent, user, itemstack)
     if not ent or not user then return end
     local v = user:get_velocity()
@@ -23,7 +21,10 @@ sum_jetpack.on_use = function(itemstack, user, pointed_thing)
   		object = ent.object,
   	})
     ent._itemstack = itemstack
-  end, ent, user, itemstack)
+  end, ent, user, ItemStack(itemstack))
+  if not minetest.is_creative_enabled(user:get_player_name()) then
+    itemstack:take_item()
+  end
   return itemstack
 end
 
@@ -49,15 +50,5 @@ minetest.register_craftitem("sum_jetpack:jetpack_fuel", {
 	-- _doc_items_usagehelp = how_to_throw,
 	inventory_image = "sum_jetpack_fuel.png",
 	stack_max = 16,
-	groups = { craftitem=1, },
-})
-
-minetest.register_craftitem("sum_jetpack:jetpack_pack", {
-	description = S("Empty Jetpack"),
-	_tt_help = S("Used in crafting"),
-	_doc_items_longdesc = S("Can be fuelled."),
-	-- _doc_items_usagehelp = how_to_throw,
-	inventory_image = "sum_jetpack_bag.png",
-	stack_max = 1,
 	groups = { craftitem=1, },
 })
