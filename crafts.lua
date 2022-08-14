@@ -43,6 +43,17 @@ if true then
       {c, c, c}
     },
   })
+  if minetest.get_modpath("mcl_core") then
+    c = "mcl_core:charcoal_lump"
+    minetest.register_craft({
+      output = "sum_jetpack:jetpack_fuel 8",
+      recipe = {
+        {s,"", s},
+        {c, c, c},
+        {c, c, c}
+      },
+    })
+  end
 end
 
 minetest.register_craft({

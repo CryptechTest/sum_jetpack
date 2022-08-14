@@ -183,6 +183,8 @@ sum_jetpack.get_movement = function(self)
   if not ctrl then return vector.new() end
 
   local dir = self._driver:get_look_dir()
+	dir.y = 0
+	dir = vector.normalize(dir)
 
   local forward = 0
   local up = 0
@@ -193,7 +195,7 @@ sum_jetpack.get_movement = function(self)
     forward = -0.5
   end
   if ctrl.jump then
-    up = 1
+    up = 2
 	elseif ctrl.aux1 then
 		up = -1
   end
@@ -271,7 +273,7 @@ sum_jetpack.do_particles = function(self, dtime)
 end
 
 local gravity = -1
-local move_speed = 20
+local move_speed = 10
 sum_jetpack.max_use_time = 30
 sum_jetpack.wear_per_sec = 65535 / sum_jetpack.max_use_time
 -- warn the player 5 sec before fuel runs out
