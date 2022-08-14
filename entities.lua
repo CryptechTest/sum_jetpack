@@ -243,6 +243,8 @@ sum_jetpack.do_particles = function(self, dtime)
 	-- end
 	local wind_vel = vector.new()
 	local p = self.object:get_pos()
+	local v = self.object:get_velocity()
+	v = vector.multiply(v, 0.8)
 	if sum_air_currents then
 		sum_air_currents.get_wind(p)
 	end
@@ -256,7 +258,7 @@ sum_jetpack.do_particles = function(self, dtime)
 		for _, prt in pairs(particles) do
 			minetest.add_particle({
 				pos = ex,
-				velocity = vector.add(wind_vel, {x=0, y= prt.vel * -math.random(0.2*100,0.7*100)/100, z=0}),
+				velocity = vector.add(v, vector.add( wind_vel, {x=0, y= prt.vel * -math.random(0.2*100,0.7*100)/100, z=0})),
 				expirationtime = ((math.random() / 5) + 0.2) * prt.time,
 				size = ((math.random())*4 + 0.1) * prt.size,
 				collisiondetection = false,
@@ -271,6 +273,7 @@ local gravity = -1
 local move_speed = 20
 sum_jetpack.max_use_time = 30
 sum_jetpack.wear_per_sec = 65535 / sum_jetpack.max_use_time
+-- warn the player 5 sec before fuel runs out
 sum_jetpack.wear_warn_level = (sum_jetpack.max_use_time - 5) * sum_jetpack.wear_per_sec
 
 sum_jetpack.on_step = function(self, dtime)
