@@ -3,6 +3,7 @@ local S = minetest.get_translator(minetest.get_current_modname())
 
 sum_jetpack.on_use = function(itemstack, user, pointed_thing)
   if user:get_attach() ~= nil then return itemstack end
+  if itemstack:get_wear() >= 65534 then return itemstack end
   local pos = user:get_pos()
   local parachute = minetest.add_entity(pos, "sum_jetpack:jetpack_ENTITY")
   local ent = parachute:get_luaentity()
@@ -10,6 +11,7 @@ sum_jetpack.on_use = function(itemstack, user, pointed_thing)
   minetest.after(0.1, function(ent, user, itemstack)
     if not ent or not user then return end
     local v = user:get_velocity()
+    v = vector.multiply(v, 0.8)
     v.y = math.max(v.y, -50)
     sum_jetpack.attach_object(ent, user)
     ent.object:set_velocity(v)
@@ -21,6 +23,7 @@ sum_jetpack.on_use = function(itemstack, user, pointed_thing)
   		object = ent.object,
   	})
     ent._itemstack = itemstack
+    ent._flags.ready = true
   end, ent, user, ItemStack(itemstack))
   if not minetest.is_creative_enabled(user:get_player_name()) then
     itemstack:take_item()

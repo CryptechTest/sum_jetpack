@@ -165,6 +165,7 @@ sum_jetpack.on_death = function(self, nothing)
     object = self.object,
 	})
 	vel = self.object:get_velocity()
+	vel = vector.multiply(vel, 0.8)
   if self._driver then
 		minetest.after(0.01, function(vel, driver)
 			driver:add_velocity(vel)
@@ -278,7 +279,8 @@ sum_jetpack.wear_warn_level = (sum_jetpack.max_use_time - 5) * sum_jetpack.wear_
 
 sum_jetpack.on_step = function(self, dtime)
   if self._age < 100 then self._age = self._age + dtime end
-	if self._age > 1 and self._itemstack then
+	if not self._flags.ready then return end
+	if self._itemstack then
 		local wear = self._itemstack:get_wear()
 		self._itemstack:set_wear(math.min(65534, wear + (65535 / sum_jetpack.max_use_time) * dtime))
 		self._fuel = sum_jetpack.max_use_time - (wear / sum_jetpack.wear_per_sec)
