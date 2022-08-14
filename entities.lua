@@ -223,7 +223,7 @@ sum_jetpack.on_step = function(self, dtime)
 
   local a = vector.new()
 	local move_mult = move_speed
-	if self._disabled then move_mult = move_mult / 10
+	if self._disabled then move_mult = move_mult / 10 end
   a = vector.multiply(sum_jetpack.get_movement(self), move_speed)
   a = vector.add(a, vector.new(0, gravity, 0))
   if sum_air_currents and sum_air_currents.get_wind ~= nil then
