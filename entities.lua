@@ -23,6 +23,7 @@ function sum_jetpack.on_activate(self, staticdata, dtime_s)
 			handle = nil
 		},
 	}
+	self._flags = {}
 end
 
 
@@ -194,13 +195,21 @@ end
 
 local gravity = -8
 local move_speed = 20
+sum_jetpack.max_use_time = 30
+sum_jetpack.wear_per_sec = 65535 / sum_jetpack.max_use_time
+sum_jetpack.wear_warn_level = (sum_jetpack.max_use_time - 5) * sum_jetpack.wear_per_sec
 sum_jetpack.on_step = function(self, dtime)
   if self._age < 100 then self._age = self._age + dtime end
 	if self._age> 1 and self._itemstack then
 		local wear = self._itemstack:get_wear()
-		self._itemstack:set_wear(math.min(65534, wear + (65535 / 30) * dtime))
+		self._itemstack:set_wear(math.min(65534, wear + (65535 / sum_jetpack.max_use_time) * dtime))
 		if wear >= 65534 then
 			self._disabled = true
+		elseif wear >= sum_jetpack.wear_warn_level and (not self._flags.warn) then
+			local warn_sound = minetest.sound_play("sum_jetpack_warn", {gain = 0.5, object = self.object})
+			if warn_sound and minetest.sound_fade ~= nil then
+				minetest.sound_fade(warn_sound, 0.1, 0) end
+			self._flags.warn = true
 		end
 	end
 	if self._sounds then
@@ -224,7 +233,7 @@ sum_jetpack.on_step = function(self, dtime)
   local a = vector.new()
 	local move_mult = move_speed
 	if self._disabled then move_mult = move_mult / 10 end
-  a = vector.multiply(sum_jetpack.get_movement(self), move_speed)
+  a = vector.multiply(sum_jetpack.get_movement(self), move_mult)
   a = vector.add(a, vector.new(0, gravity, 0))
   if sum_air_currents and sum_air_currents.get_wind ~= nil then
     a = vector.add(a, vector.multiply(sum_air_currents.get_wind(p), 2))
@@ -261,6 +270,7 @@ local jetpack_ENTITY = {
 	_sounds = nil,
 	_itemstack = nil,
 	_disabled = false,
+	_flags = {},
 
 	_lastpos={},
 }
