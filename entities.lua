@@ -345,7 +345,7 @@ local jetpack_ENTITY = {
 	textures = {"sum_jetpack_texture.png"},
 	visual_size = {x=1, y=1, z=1},
 	collisionbox = {-cbsize, -0, -cbsize,
-                   cbsize,  cbsize*2,  cbsize},
+                   cbsize,  cbsize*6,  cbsize},
 	pointable = false,
 
 	get_staticdata = sum_jetpack.get_staticdata,
