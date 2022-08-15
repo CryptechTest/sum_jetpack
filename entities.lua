@@ -2,9 +2,7 @@ local S = minetest.get_translator(minetest.get_current_modname())
 
 local mcl = minetest.get_modpath("mcl_core") ~= nil
 
-sum_jetpack = {
-	player = {}
-}
+sum_jetpack.player = {}
 
 -- Staticdata handling because objects may want to be reloaded
 function sum_jetpack.get_staticdata(self)
@@ -75,6 +73,15 @@ minetest.register_on_joinplayer(function(player)
 	playerphysics.remove_physics_factor(player, "speed", "sum_jetpack:flight")
 end)
 
+minetest.register_on_dieplayer(function(player, reason)
+	if sum_jetpack.player[player:get_player_name()] ~= nil then
+		local oldjetpack = sum_jetpack.player[player:get_player_name()]
+		sum_jetpack.on_death(oldjetpack, true)
+		oldjetpack.object:remove()
+		sum_jetpack.player[player:get_player_name()] = nil
+	end
+end)
+
 sum_jetpack.detach_object = function(self, change_pos)
 	if self._driver and self._driver:is_player() then
 		sum_jetpack.player[self._driver:get_player_name()] = nil
@@ -84,14 +91,6 @@ sum_jetpack.detach_object = function(self, change_pos)
 		end
 	end
 	self.object:set_detach()
-	-- self:set_properties({visual_size = get_visual_size(self)})
-	-- if self:is_player() and mcl then
-	-- mcl_player.player_attached[self:get_player_name()] = false
-	-- 	mcl_player.player_set_animation(self, "stand" , 30)
-	-- end
-	-- if change_pos then
-	-- 	self:set_pos(vector.add(self:get_pos(), vector.new(0, 0, 0)))
-	-- end
 end
 
 
@@ -161,13 +160,13 @@ sum_jetpack.do_sounds = function(self)
 	end
 end
 
-sum_jetpack.drop_self = function(self)
+sum_jetpack.drop_self = function(self, no_drop)
 	local drop = self._itemstack
 	self._flags.removed = true
 	if self._driver and self._driver:is_player() then
 		if minetest.is_creative_enabled(self._driver:get_player_name()) then
 			drop = nil
-		else
+		elseif not no_drop then
 			local inv = self._driver:get_inventory()
 			drop = inv:add_item("main", drop)
 		end
@@ -179,9 +178,10 @@ end
 
 
 -- clean up
-sum_jetpack.on_death = function(self, nothing)
+sum_jetpack.on_death = function(self, no_drop)
+	self._disabled = true
 	if self._itemstack then
-		sum_jetpack.drop_self(self)
+		sum_jetpack.drop_self(self, no_drop)
 	end
   self.object:set_properties({
     physical = false
@@ -324,7 +324,6 @@ sum_jetpack.on_step = function(self, dtime)
 		self._itemstack:set_wear(math.min(65534, wear + (65535 / sum_jetpack.max_use_time) * dtime))
 		self._fuel = sum_jetpack.max_use_time - (wear / sum_jetpack.wear_per_sec)
 		if wear >= 65534 then
-			self._disabled = true
 			sum_jetpack.on_death(self, nil)
 			self.object:remove()
 			return false
