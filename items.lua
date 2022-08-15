@@ -37,6 +37,7 @@ minetest.register_tool("sum_jetpack:jetpack", {
 	_doc_items_longdesc = S("Can be used to fly."),
 	-- _doc_items_usagehelp = how_to_throw,
 	inventory_image = "sum_jetpack_item.png",
+	_repair_material = "mcl_core:coal_lump",
 	stack_max = 1,
   -- range = 0,
 	groups = { usable = 1, transport = 1 },

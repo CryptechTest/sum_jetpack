@@ -52,10 +52,6 @@ sum_jetpack.attach_object = function(self, obj)
 			old_jetpack.object:remove()
 		end
 		sum_jetpack.player[self._driver:get_player_name()] = self
-		if playerphysics then
-			playerphysics.add_physics_factor(self._driver, "gravity", "sum_jetpack:flight", 0)
-			playerphysics.add_physics_factor(self._driver, "speed", "sum_jetpack:flight", 0)
-		end
 	end
 
 	sum_jetpack.set_attach(self)
@@ -318,6 +314,14 @@ sum_jetpack.wear_warn_level = (sum_jetpack.max_use_time - 5) * sum_jetpack.wear_
 
 sum_jetpack.on_step = function(self, dtime)
   if self._age < 100 then self._age = self._age + dtime end
+	if self._age < 0.6 then return
+	else
+		if not self._flags.set_grav and playerphysics then
+			playerphysics.add_physics_factor(self._driver, "gravity", "sum_jetpack:flight", 0)
+			playerphysics.add_physics_factor(self._driver, "speed", "sum_jetpack:flight", 0)
+			self._flags.set_grav = true
+		end
+	end
 	if not self._flags.ready and self._age < 1 then return end
 	if self._itemstack then
 		local wear = self._itemstack:get_wear()
@@ -369,13 +373,6 @@ sum_jetpack.on_step = function(self, dtime)
 
 	local move_vect = sum_jetpack.get_movement(self)
   a = vector.multiply(move_vect, move_mult)
-  -- a = vector.add(a, vector.new(0, gravity, 0))
-  if sum_air_currents and sum_air_currents.get_wind ~= nil then
-    a = vector.add(a, vector.multiply(sum_air_currents.get_wind(p), dtime * 0.1))
-  end
-	-- a = vector.add(a, 0, 30, 0)
-
-  -- self._driver:add_velocity(a)
 
   local vel = self._driver:get_velocity()
   vel = vector.multiply(vel, -0.02)
