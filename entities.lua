@@ -195,6 +195,7 @@ sum_jetpack.get_movement = function(self)
   if not self._driver or not self._driver:is_player() then return vector.new() end
   local ctrl = self._driver:get_player_control()
   if not ctrl then return vector.new() end
+	local anim = self._anim.idle
 
   local dir = self._driver:get_look_dir()
 	dir.y = 0
@@ -205,18 +206,23 @@ sum_jetpack.get_movement = function(self)
   local right = 0
   if ctrl.up then
     forward = 1
+		anim = self._anim.up
   elseif ctrl.down then
     forward = -0.5
+		anim = self._anim.up
   end
   if ctrl.jump then
     up = 2
+		anim = self._anim.up
 	elseif ctrl.aux1 then
 		up = -1
   end
   if ctrl.left then
     right = -1
+		anim = self._anim.up
 	elseif ctrl.right then
 		right = 1
+		anim = self._anim.up
   end
 
   local v = vector.new()
@@ -230,6 +236,9 @@ sum_jetpack.get_movement = function(self)
 	end
 
 	v.y = up
+
+	self.object:set_animation(anim, 24, 0.5)
+
   return v
 end
 
@@ -324,7 +333,8 @@ sum_jetpack.on_step = function(self, dtime)
   local node_floor = minetest.get_node(vector.offset(p, 0, -0.2, 0))
   local exit = (self._driver and self._driver:get_player_control().sneak)
             or (self._age > 1 and not self._driver)
-  if exit or (not self._driver) or (not self.object:get_attach()) then
+	exit = exit or (self._driver and self._driver:get_attach())
+  if exit then
     sum_jetpack.on_death(self, nil)
     self.object:remove()
     return false
@@ -373,6 +383,10 @@ local jetpack_ENTITY = {
 	get_staticdata = sum_jetpack.get_staticdata,
 	on_activate = sum_jetpack.on_activate,
   on_step = sum_jetpack.on_step,
+	_anim = {
+		idle = {x = 0, y = 10},
+		up = {x = 20, y = 30},
+	},
 	_thrower = nil,
   _pilot = nil,
   _age = 0,
