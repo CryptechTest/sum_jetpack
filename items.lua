@@ -38,7 +38,7 @@ minetest.register_tool("sum_jetpack:jetpack", {
 	-- _doc_items_usagehelp = how_to_throw,
 	inventory_image = "sum_jetpack_item.png",
 	stack_max = 1,
-  range = 0,
+  -- range = 0,
 	groups = { usable = 1, transport = 1 },
 	on_secondary_use = sum_jetpack.on_use,
 	-- _on_dispense = sum_jetpack.on_use,
