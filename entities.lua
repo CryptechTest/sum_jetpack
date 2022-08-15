@@ -2,6 +2,10 @@ local S = minetest.get_translator(minetest.get_current_modname())
 
 local mcl = minetest.get_modpath("mcl_core") ~= nil
 
+sum_jetpack = {
+	player = {}
+}
+
 -- Staticdata handling because objects may want to be reloaded
 function sum_jetpack.get_staticdata(self)
 	local itemstack = "sum_jetpack:jetpack"
@@ -43,6 +47,13 @@ end
 sum_jetpack.attach_object = function(self, obj)
 	self._driver = obj
 	if self._driver and self._driver:is_player() then
+		local old_jetpack = sum_jetpack.player[self._driver:get_player_name()]
+		if old_jetpack ~= nil then
+			old_jetpack._disabled = true
+			sum_jetpack.on_death(old_jetpack, nil)
+			old_jetpack.object:remove()
+		end
+		sum_jetpack.player[self._driver:get_player_name()] = self
 		if playerphysics then
 			playerphysics.add_physics_factor(self._driver, "gravity", "sum_jetpack:flight", 0)
 			playerphysics.add_physics_factor(self._driver, "speed", "sum_jetpack:flight", 0)
@@ -59,12 +70,14 @@ end
 
 -- make sure the player doesn't get stuck
 minetest.register_on_joinplayer(function(player)
+	sum_jetpack.player[player:get_player_name()] = nil
 	playerphysics.remove_physics_factor(player, "gravity", "sum_jetpack:flight")
 	playerphysics.remove_physics_factor(player, "speed", "sum_jetpack:flight")
 end)
 
 sum_jetpack.detach_object = function(self, change_pos)
 	if self._driver and self._driver:is_player() then
+		sum_jetpack.player[self._driver:get_player_name()] = nil
 		if playerphysics then
 			playerphysics.remove_physics_factor(self._driver, "gravity", "sum_jetpack:flight")
 			playerphysics.remove_physics_factor(self._driver, "speed", "sum_jetpack:flight")
@@ -322,6 +335,12 @@ sum_jetpack.on_step = function(self, dtime)
 			self._flags.warn = true
 		end
 	end
+
+	if not self._flags.visible then
+		self.object:set_properties({is_visible = true})
+		self._flags.visible = true
+	end
+
 	if self._sounds then
 		sum_jetpack.sound_timer_update(self, dtime)
 		sum_jetpack.do_sounds(self)
@@ -330,10 +349,11 @@ sum_jetpack.on_step = function(self, dtime)
 	sum_jetpack.do_particles(self, dtime)
 
   local p = self.object:get_pos()
-  local node_floor = minetest.get_node(vector.offset(p, 0, -0.2, 0))
+  local fly_node = minetest.get_node(vector.offset(p, 0, 0.3, 0))
   local exit = (self._driver and self._driver:get_player_control().sneak)
             or (self._age > 1 and not self._driver)
 	exit = exit or (self._driver and self._driver:get_attach())
+	exit = exit or (minetest.get_item_group(fly_node.name, "liquid") ~= 0)
   if exit then
     sum_jetpack.on_death(self, nil)
     self.object:remove()
@@ -387,6 +407,7 @@ local jetpack_ENTITY = {
 		idle = {x = 0, y = 10},
 		up = {x = 20, y = 30},
 	},
+	is_visible = false,
 	_thrower = nil,
   _pilot = nil,
   _age = 0,
