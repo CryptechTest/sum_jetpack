@@ -296,7 +296,7 @@ sum_jetpack.wear_warn_level = (sum_jetpack.max_use_time - 5) * sum_jetpack.wear_
 
 sum_jetpack.on_step = function(self, dtime)
   if self._age < 100 then self._age = self._age + dtime end
-	if not self._flags.ready and self._age < 2 then return end
+	if not self._flags.ready and self._age < 1 then return end
 	if self._itemstack then
 		local wear = self._itemstack:get_wear()
 		self._itemstack:set_wear(math.min(65534, wear + (65535 / sum_jetpack.max_use_time) * dtime))
