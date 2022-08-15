@@ -36,35 +36,41 @@ end
 
 sum_jetpack.set_attach = function(self)
   if not self._driver then return end
-	self._driver:set_attach(self.object, "",
+	self.object:set_attach(self._driver, "",
 		{x = 0, y = 0, z = 0}, {x = 0, y = 0, z = 0})
 end
 
 sum_jetpack.attach_object = function(self, obj)
 	self._driver = obj
+	if self._driver and self._driver:is_player() then
+		if playerphysics then
+			playerphysics.add_physics_factor(self._driver, "gravity", "sum_jetpack:flight", 0)
+		end
+	end
+
 	sum_jetpack.set_attach(self)
 
-	-- local visual_size = get_visual_size(obj)
 	local yaw = self.object:get_yaw()
-	if obj and obj:is_player() then
-		local name = obj:get_player_name()
-		if mcl then mcl_player.player_attached[name] = true end
-  end
   if self._driver then
     self.object:set_yaw(minetest.dir_to_yaw(self._driver:get_look_dir()))
   end
 end
 
 sum_jetpack.detach_object = function(self, change_pos)
-	self:set_detach()
+	if self._driver and self._driver:is_player() then
+		if playerphysics then
+			playerphysics.remove_physics_factor(self._driver, "gravity", "sum_jetpack:flight")
+		end
+	end
+	self.object:set_detach()
 	-- self:set_properties({visual_size = get_visual_size(self)})
-	if self:is_player() and mcl then
-		mcl_player.player_attached[self:get_player_name()] = false
-		mcl_player.player_set_animation(self, "stand" , 30)
-	end
-	if change_pos then
-		self:set_pos(vector.add(self:get_pos(), vector.new(0, 0, 0)))
-	end
+	-- if self:is_player() and mcl then
+	-- mcl_player.player_attached[self:get_player_name()] = false
+	-- 	mcl_player.player_set_animation(self, "stand" , 30)
+	-- end
+	-- if change_pos then
+	-- 	self:set_pos(vector.add(self:get_pos(), vector.new(0, 0, 0)))
+	-- end
 end
 
 
@@ -170,7 +176,7 @@ sum_jetpack.on_death = function(self, nothing)
 		minetest.after(0.01, function(vel, driver)
 			driver:add_velocity(vel)
 		end, vel, self._driver)
-    sum_jetpack.detach_object(self._driver, false)
+    sum_jetpack.detach_object(self, false)
   end
 end
 
@@ -244,9 +250,10 @@ sum_jetpack.do_particles = function(self, dtime)
 	-- local rand = function(m, n)
 	-- 	return (math.random()-0.5) * math.abs(m - n) + m
 	-- end
+	if not self._driver then return false end
 	local wind_vel = vector.new()
 	local p = self.object:get_pos()
-	local v = self.object:get_velocity()
+	local v = self._driver:get_velocity()
 	v = vector.multiply(v, 0.8)
 	if sum_air_currents then
 		sum_air_currents.get_wind(p)
@@ -281,7 +288,7 @@ sum_jetpack.wear_warn_level = (sum_jetpack.max_use_time - 5) * sum_jetpack.wear_
 
 sum_jetpack.on_step = function(self, dtime)
   if self._age < 100 then self._age = self._age + dtime end
-	if not self._flags.ready then return end
+	if not self._flags.ready and self._age < 2 then return end
 	if self._itemstack then
 		local wear = self._itemstack:get_wear()
 		self._itemstack:set_wear(math.min(65534, wear + (65535 / sum_jetpack.max_use_time) * dtime))
@@ -309,7 +316,7 @@ sum_jetpack.on_step = function(self, dtime)
   local node_floor = minetest.get_node(vector.offset(p, 0, -0.2, 0))
   local exit = (self._driver and self._driver:get_player_control().sneak)
             or (self._age > 1 and not self._driver)
-  if exit then
+  if exit or (not self._driver) or (not self.object:get_attach()) then
     sum_jetpack.on_death(self, nil)
     self.object:remove()
     return false
@@ -320,7 +327,7 @@ sum_jetpack.on_step = function(self, dtime)
   end
 
   local a = vector.new()
-	local move_mult = move_speed
+	local move_mult = move_speed * 10
 	if self._disabled then move_mult = move_mult / 10 end
 	local move_vect = sum_jetpack.get_movement(self)
   a = vector.multiply(move_vect, move_mult)
@@ -328,11 +335,11 @@ sum_jetpack.on_step = function(self, dtime)
   if sum_air_currents and sum_air_currents.get_wind ~= nil then
     a = vector.add(a, vector.multiply(sum_air_currents.get_wind(p), 1))
   end
-  self.object:set_acceleration(a)
+  self._driver:set_acceleration(a)
 
-  local vel = self.object:get_velocity()
-  vel = vector.multiply(vel, 0.98)
-  self.object:set_velocity(vel)
+  local vel = self._driver:get_velocity()
+  vel = vector.multiply(vel, -0.1)
+  self._driver:add_velocity(vel)
 end
 
 local cbsize = 0.3
