@@ -45,6 +45,7 @@ sum_jetpack.attach_object = function(self, obj)
 	if self._driver and self._driver:is_player() then
 		if playerphysics then
 			playerphysics.add_physics_factor(self._driver, "gravity", "sum_jetpack:flight", 0)
+			playerphysics.add_physics_factor(self._driver, "speed", "sum_jetpack:flight", 0)
 		end
 	end
 
@@ -56,10 +57,17 @@ sum_jetpack.attach_object = function(self, obj)
   end
 end
 
+-- make sure the player doesn't get stuck
+minetest.register_on_joinplayer(function(player)
+	playerphysics.remove_physics_factor(player, "gravity", "sum_jetpack:flight")
+	playerphysics.remove_physics_factor(player, "speed", "sum_jetpack:flight")
+end)
+
 sum_jetpack.detach_object = function(self, change_pos)
 	if self._driver and self._driver:is_player() then
 		if playerphysics then
 			playerphysics.remove_physics_factor(self._driver, "gravity", "sum_jetpack:flight")
+			playerphysics.remove_physics_factor(self._driver, "speed", "sum_jetpack:flight")
 		end
 	end
 	self.object:set_detach()
@@ -280,7 +288,7 @@ sum_jetpack.do_particles = function(self, dtime)
 end
 
 local gravity = -1
-local move_speed = 10
+local move_speed = 20
 sum_jetpack.max_use_time = 30
 sum_jetpack.wear_per_sec = 65535 / sum_jetpack.max_use_time
 -- warn the player 5 sec before fuel runs out
@@ -327,18 +335,25 @@ sum_jetpack.on_step = function(self, dtime)
   end
 
   local a = vector.new()
-	local move_mult = move_speed * 10
+	local move_mult = move_speed * dtime
 	if self._disabled then move_mult = move_mult / 10 end
+
 	local move_vect = sum_jetpack.get_movement(self)
   a = vector.multiply(move_vect, move_mult)
-  a = vector.add(a, vector.new(0, gravity, 0))
+  -- a = vector.add(a, vector.new(0, gravity, 0))
   if sum_air_currents and sum_air_currents.get_wind ~= nil then
-    a = vector.add(a, vector.multiply(sum_air_currents.get_wind(p), 1))
+    a = vector.add(a, vector.multiply(sum_air_currents.get_wind(p), dtime * 0.1))
   end
-  self._driver:set_acceleration(a)
+	-- a = vector.add(a, 0, 30, 0)
+
+  -- self._driver:add_velocity(a)
 
   local vel = self._driver:get_velocity()
-  vel = vector.multiply(vel, -0.1)
+  vel = vector.multiply(vel, -0.02)
+	if vel.y > 0 then
+		vel.y = vel.y * 2
+	end
+	vel = vector.add(a, vel)
   self._driver:add_velocity(vel)
 end
 
