@@ -316,7 +316,7 @@ sum_jetpack.on_step = function(self, dtime)
   if self._age < 100 then self._age = self._age + dtime end
 	if self._age < 0.6 then return
 	else
-		if not self._flags.set_grav and playerphysics then
+		if self._driver and not self._flags.set_grav and playerphysics then
 			playerphysics.add_physics_factor(self._driver, "gravity", "sum_jetpack:flight", 0)
 			playerphysics.add_physics_factor(self._driver, "speed", "sum_jetpack:flight", 0)
 			self._flags.set_grav = true
