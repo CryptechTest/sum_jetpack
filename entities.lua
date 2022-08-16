@@ -320,11 +320,6 @@ local exhaust = {
 	dist = 0.6,
 	yaw = 0.5,
 }
-local function not_zero(a)
-	if a == 0 then return 0.0001
-	else return a end
-end
-
 sum_jetpack.do_particles = function(self, dtime)
 	if not self._driver or not dtime then return false end
 	local wind_vel = vector.new()
@@ -417,7 +412,6 @@ sum_jetpack.on_step = function(self, dtime)
   end
 
   if self._driver then
-		sum_jetpack.safe_set_anim(self._driver, "idle")
     self.object:set_yaw(minetest.dir_to_yaw(self._driver:get_look_dir()))
   end
 
