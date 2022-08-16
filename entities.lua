@@ -14,6 +14,7 @@ function sum_jetpack.get_staticdata(self)
 		_lastpos = self._lastpos,
 		_age = self._age,
 		_itemstack = itemstack,
+		_disabled = self._disabled,
 	}
 	return minetest.serialize(data)
 end
@@ -22,12 +23,17 @@ function sum_jetpack.on_activate(self, staticdata, dtime_s)
 	if data then
 		self._lastpos = data._lastpos
 		self._age = data._age
+		self._disabled = data._disabled
 		if self._itemstack == nil and data._itemstack ~= nil then
 			self._itemstack = ItemStack(data._itemstack)
 		end
 	end
 	self._sounds = {
-		engine = {
+		idle = {
+			time = 0,
+			handle = nil
+		},
+		boost = {
 			time = 0,
 			handle = nil
 		},
@@ -51,6 +57,10 @@ sum_jetpack.attach_object = function(self, obj)
 			sum_jetpack.on_death(old_jetpack, nil)
 			old_jetpack.object:remove()
 		end
+
+		local name = self._driver:get_player_name()
+		if mcl then mcl_player.player_attached[name] = true end
+
 		sum_jetpack.player[self._driver:get_player_name()] = self
 	end
 
@@ -80,6 +90,10 @@ end)
 
 sum_jetpack.detach_object = function(self, change_pos)
 	if self._driver and self._driver:is_player() then
+
+		local name = self._driver:get_player_name()
+		if mcl then mcl_player.player_attached[name] = false end
+
 		sum_jetpack.player[self._driver:get_player_name()] = nil
 		if playerphysics then
 			playerphysics.remove_physics_factor(self._driver, "gravity", "sum_jetpack:flight")
@@ -90,7 +104,7 @@ sum_jetpack.detach_object = function(self, change_pos)
 end
 
 
-local function sound_play(self, soundref, instance)
+function sum_jetpack.sound_play(self, soundref, instance)
 	instance.time = 0
 	instance.handle = minetest.sound_play(soundref.name, {
 		gain = soundref.gain,
@@ -99,7 +113,7 @@ local function sound_play(self, soundref, instance)
 	})
 end
 
-local function sound_stop(handle, fade)
+function sum_jetpack.sound_stop(handle, fade)
 	if not handle then return end
 	if fade and minetest.sound_fade ~= nil then
 		minetest.sound_fade(handle, 1, 0)
@@ -108,19 +122,25 @@ local function sound_stop(handle, fade)
 	end
 end
 
-local function sound_stop_all(self)
+function sum_jetpack.sound_stop_all(self)
 	if not self._sounds or type(self._sounds) ~= "table" then return end
 	for _, sound in pairs(self._sounds) do
-		sound_stop(sound.handle)
+		sum_jetpack.sound_stop(sound.handle)
 	end
 end
 
-local sound_list = {
-	boost = {
+sum_jetpack.sound_list = {
+	idle = {
 		name = "sum_jetpack_flame",
 		gain = 0.2,
 		pitch = 0.7,
-		duration = 3 + (3 * (1 - 0.6)), -- will stop the sound after this
+		duration = 3 + (3 * (1 - 0.7)), -- will stop the sound after this
+	},
+	boost = {
+		name = "sum_jetpack_flame",
+		gain = 0.4,
+		pitch = 0.5,
+		duration = 3 + (3 * (1 - 0.5)), -- will stop the sound after this
 	},
 }
 
@@ -134,25 +154,48 @@ end
 
 
 sum_jetpack.do_sounds = function(self)
-	if self._sounds and self._sounds.engine then
-
-		if not self._sounds.engine.handle and not self._disabled then
-			sound_play(self, sound_list.boost, self._sounds.engine)
-		elseif self._disabled or (self._sounds.engine.time > sound_list.boost.duration
-		and self._sounds.engine.handle) then
-			sound_stop(self._sounds.engine.handle)
-			self._sounds.engine.handle = nil
+	if self._sounds then
+		if not self._sounds.idle.handle and not self._disabled then
+			sum_jetpack.sound_play(self, sum_jetpack.sound_list.idle, self._sounds.idle)
+		elseif self._disabled or (self._sounds.idle.time > sum_jetpack.sound_list.idle.duration
+		and self._sounds.idle.handle) then
+			sum_jetpack.sound_stop(self._sounds.idle.handle)
+			self._sounds.idle.handle = nil
 		end
 
-		if not self._driver and self._sounds.engine.handle then
-			minetest.sound_stop(self._sounds.engine.handle)
-			self._sounds.engine.handle = nil
+		if not self._driver and self._sounds.idle.handle then
+			minetest.sound_stop(self._sounds.idle.handle)
+			self._sounds.idle.handle = nil
 		end
+
+
+		if self._driver and self._driver:is_player() then
+			local ctrl = self._driver:get_player_control()
+			local moving = ctrl and (ctrl.up or ctrl.down or ctrl.left or ctrl.right or ctrl.jump)
+			-- moving = moving and not ctrl.aux1
+			if moving then
+				if not self._sounds.boost.handle then
+					sum_jetpack.sound_play(self, sum_jetpack.sound_list.boost, self._sounds.boost)
+				elseif self._disabled or (self._sounds.boost.time > sum_jetpack.sound_list.boost.duration
+				and self._sounds.boost.handle) then
+					sum_jetpack.sound_stop(self._sounds.boost.handle)
+					self._sounds.boost.handle = nil
+				end
+			elseif self._sounds.boost.handle then
+				minetest.sound_stop(self._sounds.boost.handle)
+				self._sounds.boost.handle = nil
+			end
+		end
+
+
+
 	else
-		self._sounds.engine = {
+		self._sounds.idle = {
 			time = 0,
-			handle = nil
-		}
+			handle = nil}
+		self._sounds.boost = {
+			time = 0,
+			handle = nil}
 	end
 end
 
@@ -175,6 +218,9 @@ end
 
 -- clean up
 sum_jetpack.on_death = function(self, no_drop)
+	if self._flags.removed then return false end
+	sum_jetpack.sound_stop_all(self)
+	self._flags.removed = true
 	self._disabled = true
 	if self._itemstack then
 		sum_jetpack.drop_self(self, no_drop)
@@ -182,7 +228,6 @@ sum_jetpack.on_death = function(self, no_drop)
   self.object:set_properties({
     physical = false
   })
-	sound_stop_all(self)
   minetest.sound_play("sum_jetpack_fold", {
 		gain = 1,
     object = self.object,
@@ -246,40 +291,46 @@ sum_jetpack.get_movement = function(self)
 
 	v.y = up
 
-	self.object:set_animation(anim, 24, 0.5)
+	self.object:set_animation(anim, 24, 0)
 
   return v
 end
 
 local particles = {
-	flame = {
-		texture = "sum_jetpack_particle_flame.png",
-		vel = 30,
-		time = 1,
-		size = 0.7},
 	smoke = {
+		chance = 1,
 		texture = "sum_jetpack_particle_smoke.png",
 		vel = 8,
 		time = 4,
 		size = 1.3},
+	flame = {
+		chance = 0.5,
+		texture = "sum_jetpack_particle_flame.png",
+		vel = 30,
+		time = 1,
+		size = 0.7},
 	spark = {
+		chance = 0.6,
 		texture = "sum_jetpack_particle_spark.png",
 		vel = 40,
 		time = 0.6,
-		size = 1},
+		size = 0.5},
 }
 local exhaust = {
 	dist = 0.6,
 	yaw = 0.5,
 }
+local function not_zero(a)
+	if a == 0 then return 0.0001
+	else return a end
+end
+
 sum_jetpack.do_particles = function(self, dtime)
-	-- local rand = function(m, n)
-	-- 	return (math.random()-0.5) * math.abs(m - n) + m
-	-- end
-	if not self._driver then return false end
+	if not self._driver or not dtime then return false end
 	local wind_vel = vector.new()
 	local p = self.object:get_pos()
 	local v = self._driver:get_velocity()
+	local vel = self._driver:get_velocity()
 	v = vector.multiply(v, 0.8)
 	if sum_air_currents then
 		sum_air_currents.get_wind(p)
@@ -292,15 +343,17 @@ sum_jetpack.do_particles = function(self, dtime)
 		local ex = vector.add(p, yaw)
 		ex.y = ex.y + 1
 		for _, prt in pairs(particles) do
-			minetest.add_particle({
-				pos = ex,
-				velocity = vector.add(v, vector.add( wind_vel, {x=0, y= prt.vel * -math.random(0.2*100,0.7*100)/100, z=0})),
-				expirationtime = ((math.random() / 5) + 0.2) * prt.time,
-				size = ((math.random())*4 + 0.1) * prt.size,
-				collisiondetection = false,
-				vertical = false,
-				texture = prt.texture,
-			})
+			if prt.chance == 1 or math.random(0,100)/100 < prt.chance then
+				minetest.add_particle({
+					pos = vector.add(ex, vector.multiply(vel, dtime * 1.07)),
+					velocity = vector.add(v, vector.add( wind_vel, {x=0, y= prt.vel * -math.random(0.2*100,0.7*100)/100, z=0})),
+					expirationtime = ((math.random() / 5) + 0.2) * prt.time,
+					size = ((math.random())*4 + 0.1) * prt.size,
+					collisiondetection = false,
+					vertical = false,
+					texture = prt.texture,
+				})
+			end
 		end
 	end
 end
@@ -364,6 +417,7 @@ sum_jetpack.on_step = function(self, dtime)
   end
 
   if self._driver then
+		sum_jetpack.safe_set_anim(self._driver, "idle")
     self.object:set_yaw(minetest.dir_to_yaw(self._driver:get_look_dir()))
   end
 
