@@ -51,11 +51,11 @@ end
 sum_jetpack.attach_object = function(self, obj)
 	self._driver = obj
 	if self._driver and self._driver:is_player() then
-		local old_jetpack = attachto_player.player[self._driver:get_player_name()]
-		if old_jetpack ~= nil then
-			old_jetpack._disabled = true
-			sum_jetpack.on_death(old_jetpack, nil)
-			old_jetpack.object:remove()
+		local old_attacher = attachto_player.player[self._driver:get_player_name()]
+		if old_attacher ~= nil then
+			old_attacher._disabled = true
+			if type(old_attacher._on_detach) == "function" then
+				old_attacher._on_detach(old_attacher, nil) end
 		end
 		attachto_player.player[self._driver:get_player_name()] = self
 	end
@@ -77,9 +77,11 @@ end)
 
 minetest.register_on_dieplayer(function(player, reason)
 	if attachto_player.player[player:get_player_name()] ~= nil then
-		local oldjetpack = attachto_player.player[player:get_player_name()]
-		sum_jetpack.on_death(oldjetpack, true)
-		oldjetpack.object:remove()
+		local old_attacher = attachto_player.player[player:get_player_name()]
+		if type(old_attacher._on_death) == "function" then
+			old_attacher._on_death(old_attacher, nil) end
+		sum_jetpack.on_death(old_attacher, true)
+		old_attacher.object:remove()
 		attachto_player.player[player:get_player_name()] = nil
 	end
 end)
@@ -236,6 +238,7 @@ sum_jetpack.on_death = function(self, no_drop)
 		end, vel, self._driver)
     sum_jetpack.detach_object(self, false)
   end
+	self.object:remove()
 end
 
 
@@ -471,6 +474,7 @@ local jetpack_ENTITY = {
 	_disabled = false,
 	_flags = {},
 	_fuel = sum_jetpack.max_use_time,
+	_on_detach = sum_jetpack.on_death,
 
 	_lastpos={},
 }
