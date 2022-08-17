@@ -2,7 +2,7 @@ local S = minetest.get_translator(minetest.get_current_modname())
 
 local mcl = minetest.get_modpath("mcl_core") ~= nil
 
-sum_jetpack.player = {}
+attachto_player.player = {}
 
 -- Staticdata handling because objects may want to be reloaded
 function sum_jetpack.get_staticdata(self)
@@ -51,17 +51,13 @@ end
 sum_jetpack.attach_object = function(self, obj)
 	self._driver = obj
 	if self._driver and self._driver:is_player() then
-		local old_jetpack = sum_jetpack.player[self._driver:get_player_name()]
+		local old_jetpack = attachto_player.player[self._driver:get_player_name()]
 		if old_jetpack ~= nil then
 			old_jetpack._disabled = true
 			sum_jetpack.on_death(old_jetpack, nil)
 			old_jetpack.object:remove()
 		end
-
-		local name = self._driver:get_player_name()
-		if mcl then mcl_player.player_attached[name] = true end
-
-		sum_jetpack.player[self._driver:get_player_name()] = self
+		attachto_player.player[self._driver:get_player_name()] = self
 	end
 
 	sum_jetpack.set_attach(self)
@@ -74,17 +70,17 @@ end
 
 -- make sure the player doesn't get stuck
 minetest.register_on_joinplayer(function(player)
-	sum_jetpack.player[player:get_player_name()] = nil
-	playerphysics.remove_physics_factor(player, "gravity", "sum_jetpack:flight")
-	playerphysics.remove_physics_factor(player, "speed", "sum_jetpack:flight")
+	attachto_player.player[player:get_player_name()] = nil
+	playerphysics.remove_physics_factor(player, "gravity", "flight")
+	playerphysics.remove_physics_factor(player, "speed", "flight")
 end)
 
 minetest.register_on_dieplayer(function(player, reason)
-	if sum_jetpack.player[player:get_player_name()] ~= nil then
-		local oldjetpack = sum_jetpack.player[player:get_player_name()]
+	if attachto_player.player[player:get_player_name()] ~= nil then
+		local oldjetpack = attachto_player.player[player:get_player_name()]
 		sum_jetpack.on_death(oldjetpack, true)
 		oldjetpack.object:remove()
-		sum_jetpack.player[player:get_player_name()] = nil
+		attachto_player.player[player:get_player_name()] = nil
 	end
 end)
 
@@ -94,10 +90,10 @@ sum_jetpack.detach_object = function(self, change_pos)
 		local name = self._driver:get_player_name()
 		if mcl then mcl_player.player_attached[name] = false end
 
-		sum_jetpack.player[self._driver:get_player_name()] = nil
+		attachto_player.player[self._driver:get_player_name()] = nil
 		if playerphysics then
-			playerphysics.remove_physics_factor(self._driver, "gravity", "sum_jetpack:flight")
-			playerphysics.remove_physics_factor(self._driver, "speed", "sum_jetpack:flight")
+			playerphysics.remove_physics_factor(self._driver, "gravity", "flight")
+			playerphysics.remove_physics_factor(self._driver, "speed", "flight")
 		end
 	end
 	self.object:set_detach()
@@ -269,7 +265,7 @@ sum_jetpack.get_movement = function(self)
     up = 2
 		anim = self._anim.up
 	elseif ctrl.aux1 then
-		up = -1
+		up = -2
   end
   if ctrl.left then
     right = -1
@@ -298,22 +294,28 @@ end
 
 local particles = {
 	smoke = {
-		chance = 1,
-		texture = "sum_jetpack_particle_smoke.png",
-		vel = 8,
+		chance = 0.5,
+		texture = "sum_jetpack_particle_smoke.png^[colorize:#22222900:50",
+		vel = 2,
 		time = 4,
 		size = 1.3},
+	smoke3 = {
+		chance = 1,
+		texture = "sum_jetpack_particle_smoke.png^[colorize:#22222900:50",
+		vel = 4,
+		time = 1,
+		size = 0.7},
 	flame = {
 		chance = 0.5,
 		texture = "sum_jetpack_particle_flame.png",
-		vel = 30,
-		time = 1,
+		vel = 10,
+		time = 0.6,
 		size = 0.7},
 	spark = {
 		chance = 0.6,
 		texture = "sum_jetpack_particle_spark.png",
-		vel = 40,
-		time = 0.6,
+		vel = 20,
+		time = 0.4,
 		size = 0.5},
 }
 local exhaust = {
@@ -322,10 +324,19 @@ local exhaust = {
 }
 sum_jetpack.do_particles = function(self, dtime)
 	if not self._driver or not dtime then return false end
+	local ctrl
+	if self._driver:is_player() then
+		ctrl = self._driver:get_player_control()
+	end
+	local part_chance_mult = ctrl and (ctrl.up or ctrl.down or ctrl.left or ctrl.right or ctrl.jump)
+	if not part_chance_mult then part_chance_mult = 0.2
+	else part_chance_mult = 1 end
+
 	local wind_vel = vector.new()
 	local p = self.object:get_pos()
 	local v = self._driver:get_velocity()
 	local vel = self._driver:get_velocity()
+	vel = vector.multiply(vel, dtime * 1.07)
 	v = vector.multiply(v, 0.8)
 	if sum_air_currents then
 		sum_air_currents.get_wind(p)
@@ -338,12 +349,12 @@ sum_jetpack.do_particles = function(self, dtime)
 		local ex = vector.add(p, yaw)
 		ex.y = ex.y + 1
 		for _, prt in pairs(particles) do
-			if prt.chance == 1 or math.random(0,100)/100 < prt.chance then
+			if math.random(0,100)/100 < prt.chance * part_chance_mult then
 				minetest.add_particle({
-					pos = vector.add(ex, vector.multiply(vel, dtime * 1.07)),
+					pos = vector.add(ex, vel),
 					velocity = vector.add(v, vector.add( wind_vel, {x=0, y= prt.vel * -math.random(0.2*100,0.7*100)/100, z=0})),
 					expirationtime = ((math.random() / 5) + 0.2) * prt.time,
-					size = ((math.random())*4 + 0.1) * prt.size,
+					size = ((math.random())*4 + 0.05) * prt.size,
 					collisiondetection = false,
 					vertical = false,
 					texture = prt.texture,
@@ -354,7 +365,7 @@ sum_jetpack.do_particles = function(self, dtime)
 end
 
 local gravity = -1
-local move_speed = 20
+local move_speed = 15
 sum_jetpack.max_use_time = 30
 sum_jetpack.wear_per_sec = 65535 / sum_jetpack.max_use_time
 -- warn the player 5 sec before fuel runs out
@@ -365,8 +376,8 @@ sum_jetpack.on_step = function(self, dtime)
 	if self._age < 0.6 then return
 	else
 		if self._driver and not self._flags.set_grav and playerphysics then
-			playerphysics.add_physics_factor(self._driver, "gravity", "sum_jetpack:flight", 0)
-			playerphysics.add_physics_factor(self._driver, "speed", "sum_jetpack:flight", 0)
+			playerphysics.add_physics_factor(self._driver, "gravity", "flight", 0)
+			playerphysics.add_physics_factor(self._driver, "speed", "flight", 0)
 			self._flags.set_grav = true
 		end
 	end
@@ -423,9 +434,9 @@ sum_jetpack.on_step = function(self, dtime)
   a = vector.multiply(move_vect, move_mult)
 
   local vel = self._driver:get_velocity()
-  vel = vector.multiply(vel, -0.02)
+  vel = vector.multiply(vel, -0.04)
 	if vel.y > 0 then
-		vel.y = vel.y * 2
+		vel.y = vel.y * 1.5
 	end
 	vel = vector.add(a, vel)
   self._driver:add_velocity(vel)
