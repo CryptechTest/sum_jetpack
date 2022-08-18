@@ -455,7 +455,7 @@ local jetpack_ENTITY = {
 	_flags = {},
 	_fuel = sum_jetpack.max_use_time,
 	_on_detach = sum_jetpack.on_death,
-	_groups = {flight = 1, backpack = 1},
+	_attach_groups = {flight = 1, backpack = 1},
 
 	_lastpos={},
 }
