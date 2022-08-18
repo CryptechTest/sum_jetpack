@@ -2,7 +2,7 @@ local S = minetest.get_translator(minetest.get_current_modname())
 
 local mcl = minetest.get_modpath("mcl_core") ~= nil
 
-attachto_player.player = {}
+local atp = attachto_player
 
 -- Staticdata handling because objects may want to be reloaded
 function sum_jetpack.get_staticdata(self)
@@ -46,19 +46,11 @@ sum_jetpack.set_attach = function(self)
   if not self._driver then return end
 	self.object:set_attach(self._driver, "",
 		{x = 0, y = 0, z = 0}, {x = 0, y = 0, z = 0})
+	if atp then atp.attach(self, self._driver) end
 end
 
 sum_jetpack.attach_object = function(self, obj)
 	self._driver = obj
-	if self._driver and self._driver:is_player() then
-		local old_attacher = attachto_player.player[self._driver:get_player_name()]
-		if old_attacher ~= nil then
-			old_attacher._disabled = true
-			if type(old_attacher._on_detach) == "function" then
-				old_attacher._on_detach(old_attacher, nil) end
-		end
-		attachto_player.player[self._driver:get_player_name()] = self
-	end
 
 	sum_jetpack.set_attach(self)
 
@@ -70,20 +62,8 @@ end
 
 -- make sure the player doesn't get stuck
 minetest.register_on_joinplayer(function(player)
-	attachto_player.player[player:get_player_name()] = nil
 	playerphysics.remove_physics_factor(player, "gravity", "flight")
 	playerphysics.remove_physics_factor(player, "speed", "flight")
-end)
-
-minetest.register_on_dieplayer(function(player, reason)
-	if attachto_player.player[player:get_player_name()] ~= nil then
-		local old_attacher = attachto_player.player[player:get_player_name()]
-		if type(old_attacher._on_death) == "function" then
-			old_attacher._on_death(old_attacher, nil) end
-		sum_jetpack.on_death(old_attacher, true)
-		old_attacher.object:remove()
-		attachto_player.player[player:get_player_name()] = nil
-	end
 end)
 
 sum_jetpack.detach_object = function(self, change_pos)
@@ -92,13 +72,13 @@ sum_jetpack.detach_object = function(self, change_pos)
 		local name = self._driver:get_player_name()
 		if mcl then mcl_player.player_attached[name] = false end
 
-		attachto_player.player[self._driver:get_player_name()] = nil
 		if playerphysics then
 			playerphysics.remove_physics_factor(self._driver, "gravity", "flight")
 			playerphysics.remove_physics_factor(self._driver, "speed", "flight")
 		end
 	end
 	self.object:set_detach()
+	if atp then atp.detach_child(self._driver, self) end
 end
 
 
@@ -475,6 +455,7 @@ local jetpack_ENTITY = {
 	_flags = {},
 	_fuel = sum_jetpack.max_use_time,
 	_on_detach = sum_jetpack.on_death,
+	_groups = {flight = 1, backpack = 1},
 
 	_lastpos={},
 }
