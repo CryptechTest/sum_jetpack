@@ -52,7 +52,6 @@ minetest.register_craftitem("sum_jetpack:jetpack_fuel", {
 	description = S("Jetpack Fuel"),
 	_tt_help = S("Used in crafting"),
 	_doc_items_longdesc = S("Fuel for a jetpack."),
-	-- _doc_items_usagehelp = how_to_throw,
 	inventory_image = "sum_jetpack_fuel.png",
 	stack_max = 16,
 	groups = { craftitem=1, },
