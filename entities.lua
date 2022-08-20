@@ -46,7 +46,7 @@ sum_jetpack.set_attach = function(self)
   if not self._driver then return end
   self.object:set_attach(self._driver, "",
     {x = 0, y = 0, z = 0}, {x = 0, y = 0, z = 0})
-  if atp then atp.attach(self, self._driver) end
+  if atp then atp.set_attach(self, self._driver) end
 end
 
 sum_jetpack.attach_object = function(self, obj)
@@ -76,7 +76,7 @@ sum_jetpack.detach_object = function(self, change_pos)
     playerphysics.remove_physics_factor(self._driver, "speed", "flight")
   end
   self.object:set_detach()
-  if atp then atp.detach_child(self._driver, self) end
+  atp.detach_child(self._driver, self)
 end
 
 
