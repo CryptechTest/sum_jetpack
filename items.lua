@@ -4,7 +4,7 @@ local S = minetest.get_translator(minetest.get_current_modname())
 sum_jetpack.on_use = function(itemstack, user, pointed_thing)
   if user:get_attach() ~= nil then return itemstack end
   if itemstack:get_wear() >= 65534 then return itemstack end
-  if attachto_player and attachto_player.get_attach(user, "flight") > 0 then return itemstack end
+  if attachto_player and attachto_player.get_group(user, "flight") > 0 then return itemstack end
   local pos = user:get_pos()
   local parachute = minetest.add_entity(pos, "sum_jetpack:jetpack_ENTITY")
   local ent = parachute:get_luaentity()
