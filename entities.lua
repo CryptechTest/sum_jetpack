@@ -240,10 +240,10 @@ sum_jetpack.get_movement = function(self)
     anim = self._anim.up
   end
   if ctrl.jump then
-    up = 2
+    up = 1
     anim = self._anim.up
   elseif ctrl.aux1 then
-    up = -2
+    up = -1
   end
   if ctrl.left then
     right = -1
@@ -260,6 +260,7 @@ sum_jetpack.get_movement = function(self)
     local yaw = minetest.dir_to_yaw(dir)
     yaw = yaw - (right * (math.pi / 2))
     yaw = minetest.yaw_to_dir(yaw)
+    yaw = vector.multiply(yaw, 0.5)
     v = vector.add(v, yaw)
   end
 
@@ -343,7 +344,7 @@ sum_jetpack.do_particles = function(self, dtime)
 end
 
 local gravity = -1
-local move_speed = 15
+local move_speed = 25
 sum_jetpack.max_use_time = 30
 sum_jetpack.wear_per_sec = 65535 / sum_jetpack.max_use_time
 -- warn the player 5 sec before fuel runs out
