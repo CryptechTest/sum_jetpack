@@ -178,12 +178,12 @@ sum_jetpack.on_death = function(self, nothing)
 		gain = 1,
     object = self.object,
 	})
-	local v = self.object:get_velocity()
-	v = vector.multiply(v, 0.8)
+	vel = self.object:get_velocity()
+	vel = vector.multiply(vel, 0.8)
   if self._driver then
 		minetest.after(0.01, function(vel, driver)
 			driver:add_velocity(vel)
-		end, v, self._driver)
+		end, vel, self._driver)
     sum_jetpack.detach_object(self, false)
   end
 end
@@ -261,7 +261,7 @@ sum_jetpack.do_particles = function(self, dtime)
 	if not self._driver then return false end
 	local wind_vel = vector.new()
 	--local p = self.object:get_pos()
-	local v = self._driver:get_velocity() or 0
+	local v = self._driver:get_velocity()
 	v = vector.multiply(v, 0.8)
 	--if sum_air_currents then
 	--	sum_air_currents.get_wind(p)
