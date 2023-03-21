@@ -178,12 +178,12 @@ sum_jetpack.on_death = function(self, nothing)
 		gain = 1,
     object = self.object,
 	})
-	vel = self.object:get_velocity()
-	vel = vector.multiply(vel, 0.8)
+	local v = self.object:get_velocity()
+	v = vector.multiply(v, 0.8)
   if self._driver then
 		minetest.after(0.01, function(vel, driver)
 			driver:add_velocity(vel)
-		end, vel, self._driver)
+		end, v, self._driver)
     sum_jetpack.detach_object(self, false)
   end
 end
