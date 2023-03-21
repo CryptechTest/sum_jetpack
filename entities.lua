@@ -261,7 +261,7 @@ sum_jetpack.do_particles = function(self, dtime)
 	if not self._driver then return false end
 	local wind_vel = vector.new()
 	--local p = self.object:get_pos()
-	local v = self._driver:get_velocity()
+	local v = self._driver:get_velocity() or 0
 	v = vector.multiply(v, 0.8)
 	--if sum_air_currents then
 	--	sum_air_currents.get_wind(p)
