@@ -65,10 +65,10 @@ end)
 
 sum_jetpack.detach_object = function(self, change_pos)
 	--if self._driver and self._driver:is_player() then
-	--	if playerphysics then
+		--if playerphysics then
 			--playerphysics.remove_physics_factor(self._driver, "gravity", "sum_jetpack:flight")
 			--playerphysics.remove_physics_factor(self._driver, "speed", "sum_jetpack:flight")
-	--	end
+		--end
 	--end
 	self.object:set_detach()
 	-- self:set_properties({visual_size = get_visual_size(self)})
@@ -260,12 +260,13 @@ sum_jetpack.do_particles = function(self, dtime)
 	-- end
 	if not self._driver then return false end
 	local wind_vel = vector.new()
-	--local p = self.object:get_pos()
+	local p = self.object:get_pos()
 	local v = self._driver:get_velocity()
 	v = vector.multiply(v, 0.8)
-	--if sum_air_currents then
-	--	sum_air_currents.get_wind(p)
-	--end
+	local sum_air_currents = minetest.get_modpath("sum_air_currents") ~= nil
+	if sum_air_currents then
+		sum_air_currents.get_wind(p)
+	end
 	for i=-1,0 do
 		if i == 0 then i = 1 end
 		local yaw = self.object:get_yaw() + (exhaust.yaw * i) + math.pi
@@ -341,9 +342,10 @@ sum_jetpack.on_step = function(self, dtime)
 	local move_vect = sum_jetpack.get_movement(self)
   a = vector.multiply(move_vect, move_mult)
   -- a = vector.add(a, vector.new(0, gravity, 0))
-  --if sum_air_currents and sum_air_currents.get_wind ~= nil then
-  --  a = vector.add(a, vector.multiply(sum_air_currents.get_wind(p), dtime * 0.1))
-  --end
+  local sum_air_currents = minetest.get_modpath("sum_air_currents") ~= nil
+  if sum_air_currents and sum_air_currents.get_wind ~= nil then
+    a = vector.add(a, vector.multiply(sum_air_currents.get_wind(p), dtime * 0.1))
+  end
 	-- a = vector.add(a, 0, 30, 0)
 
   -- self._driver:add_velocity(a)
